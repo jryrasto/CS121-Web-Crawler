@@ -101,8 +101,8 @@ def is_valid(url):
         # urlparse rejects malformed hosts such as "http://[bad".
         return False
 
-## Tokenizer from HW1 keeping ASCII alphanumeric runs, extended to keep
-#  inner apostrophes in words like "don't" so they stay whole and match the
-# stopword list.
+## Tokenizer keeping ASCII alphanumeric runs, extended to keep inner
+#  apostrophes in words like "don't" so they stay whole and match the
+#  stopword list.
 def tokenize(text):
     return re.findall(r"[a-z0-9]+(?:'[a-z0-9]+)*",text.lower().replace("\u2019", "'"))
