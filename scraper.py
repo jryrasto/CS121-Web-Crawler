@@ -58,10 +58,9 @@ def extract_next_links(url, resp):
 
     return [absolute(page_url, a["href"]) for a in soup.find_all("a", href=True)]
 
-    return list()
-
-# A malformed href makes urljoin raise; "" is then rejected by is_valid instead
-# of crashing the worker thread.
+## Relative -> absolute against real page URL, then defragment.
+#  A malformed href makes urljoin raise; "" is then rejected by is_valid instead
+#  of crashing the worker thread.
 def absolute(base, href):
     try:
         return urldefrag(urljoin(base, href.strip())).url
@@ -101,3 +100,9 @@ def is_valid(url):
     except ValueError:
         # urlparse rejects malformed hosts such as "http://[bad".
         return False
+
+## Tokenizer from HW1 keeping ASCII alphanumeric runs, extended to keep
+#  inner apostrophes in words like "don't" so they stay whole and match the
+# stopword list.
+def tokenize(text):
+    return re.findall(r"[a-z0-9]+(?:'[a-z0-9]+)*",text.lower().replace("\u2019", "'"))
