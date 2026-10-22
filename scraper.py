@@ -105,4 +105,5 @@ def is_valid(url):
 #  apostrophes in words like "don't" so they stay whole and match the
 #  stopword list.
 def tokenize(text):
-    return re.findall(r"[a-z0-9]+(?:'[a-z0-9]+)*",text.lower().replace("\u2019", "'"))
+    text = text.replace("\u2019", "'")
+    return [w.lower() for w in re.findall(r"[a-z0-9]+(?:'[a-z0-9]+)*",text)]
