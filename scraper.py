@@ -56,6 +56,9 @@ def extract_next_links(url, resp):
 
     words = tokenize(soup.get_text(" "))
 
+    duplicate = is_near_duplicate(page_url, fingerprint)
+    record_page(page_url, len(words), fingerprint, freqs)
+
     return [absolute(page_url, a["href"]) for a in soup.find_all("a", href=True)]
 
 ## Relative -> absolute against real page URL, then defragment.
@@ -107,3 +110,20 @@ def is_valid(url):
 def tokenize(text):
     text = text.replace("\u2019", "'")
     return [w.lower() for w in re.findall(r"[a-z0-9]+(?:'[a-z0-9]+)*",text)]
+
+## Read the log back, skipping a line half-written by a crash
+def read_log():
+    if not os.path.exists(LOG_FILE):
+        return
+    with open(LOG_FILE, encoding="utf-8") as f:
+        for line in f:
+            try:
+                yield json.loads(line)
+            except json.JSONDecodeError:
+                continue
+
+## Save one line per page as JSON; appending is crash-safe and O(1) per page
+def record_page(url, word_count, fingerprint, freqs):
+    with open(LOG_FILE, "a", encoding="utf-8") as f:
+        f.write(json.dumps({"url":url,"words":word_count,"simhash":fingerprint,"freqs":freqs}) + "\n")
+    _seen_fingerprints.append((fingerprint, url))
