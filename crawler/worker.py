@@ -3,9 +3,13 @@ from threading import Thread
 from inspect import getsource
 from utils.download import download
 from utils import get_logger
+import requests
 import scraper
 import time
 
+# Wait before retrying a failed cache server (30s, doubling; capped @ 10min)
+RETRY_DELAY = 30
+MAX_RETRY_DELAY = 600
 
 class Worker(Thread):
     def __init__(self, worker_id, config, frontier):
@@ -23,7 +27,7 @@ class Worker(Thread):
             if not tbd_url:
                 self.logger.info("Frontier is empty. Stopping Crawler.")
                 break
-            resp = self.download_with_retry(tbd_url, self.config, self.logger)
+            resp = self.download_with_retry(tbd_url)
             self.logger.info(
                 f"Downloaded {tbd_url}, status <{resp.status}>, "
                 f"using cache {self.config.cache_server}.")
@@ -32,3 +36,18 @@ class Worker(Thread):
                 self.frontier.add_url(scraped_url)
             self.frontier.mark_url_complete(tbd_url)
             time.sleep(self.config.time_delay)
+
+    # When the cache server fails, retry the same URL instead of letting it be marked complete
+    def download_with_retry(self, url):
+        delay = RETRY_DELAY
+        while True:
+            try:
+                resp = download(url, self.config, self.logger)
+                if resp.raw_response is not None or 600 <= resp.status < 700:
+                    return resp
+                reason = f"status {resp.status}"
+            except requests.RequestException as e:
+                reason = type(e).__name__
+            self.logger.warning(f"Cache server failure ({reason}) on {url}; retrying in {delay}s.")
+            time.sleep((delay))
+            delay = min(delay * 2, MAX_RETRY_DELAY)
