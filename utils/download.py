@@ -4,6 +4,9 @@ import time
 
 from utils.response import Response
 
+# A cache server that accepts the connection but never answers blocks the crawler forever
+DOWNLOAD_TIMEOUT = 60
+
 def download(url, config, logger=None):
     host, port = config.cache_server
     resp = requests.get(
