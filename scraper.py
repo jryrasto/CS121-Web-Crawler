@@ -34,6 +34,12 @@ yourself yourselves
 # A page with meaningful information value should have about 2-3 sentences worth of words (let's say 50); Navigation and UI Menu words count
 MIN_WORDS = 50
 
+# Detect trap URLs via query keys that only re-render same content
+# (share buttons, comment replies, calendar views...)
+TRAP_QUERY_KEYS = {"share", "replytocom", "action", "do", "rev", "version", "idx",
+                   "ical", "outlook-ical", "tribe-bar-date", "eventdisplay", "c", "o"}
+MAX_URL_LENGTH = 200
+
 def scraper(url, resp):
     links = extract_next_links(url, resp)
     return [link for link in links if is_valid(link)]
@@ -104,7 +110,7 @@ def is_valid(url):
     # There are already some conditions that return False.
     try:
         parsed = urlparse(url)
-        ## Only fetch HTTP and HTTPS URLs & Only receive an ASCII URL
+        ## Only fetch HTTP and HTTPS URLs & only receive an ASCII URL
         if parsed.scheme not in set(["http", "https"]) or not url.isascii():
             return False
         ## Only fetch the allowed domain itself, or anything under ".{ALLOWED_DOMAIN}/"
@@ -112,6 +118,21 @@ def is_valid(url):
         host = parsed.hostname or ""
         if not any(host == d or host.endswith("." + d) for d in ALLOWED_DOMAINS):
             return False
+        ## URLs that exceed 200 characters tend to accumulate parameters and not be real pages
+        if len(url) > MAX_URL_LENGTH:
+            return False
+        ## URLs that have growing path segments appearing >= 3 times tend to be traps
+        segments = [s for s in parsed.path.split("/") if s]
+        if segments and Counter(segments).most_common(1)[0][1] >= 3:
+            return False
+        ## URLs with a full YYYY-MM-DD in the path or query are calendar links that can chain to the next day forever
+        if re.search(r"\d{4}-\d{2}-\d{2}", parsed.path + parsed.query):
+            return False
+        ## URLs with query keys that only change how the page is presented multiply it into many with essentially the same content
+        query_keys = parse_qs(parsed.query, keep_blank_values=True)
+        if TRAP_QUERY_KEYS & {k.lower() for k in query_keys}:
+            return False
+
         return not re.match(
             r".*\.(css|js|bmp|gif|jpe?g|ico"
             + r"|png|tiff?|mid|mp2|mp3|mp4"
