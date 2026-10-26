@@ -10,6 +10,30 @@ from bs4 import BeautifulSoup
 ALLOWED_DOMAINS = ("ics.uci.edu", "cs.uci.edu", "informatics.uci.edu", "stat.uci.edu")
 MAX_BYTES = 2 * 1024 * 1024         # HTML pages are ~30 KB at the median; anything past this is a data dump
 
+# Append-only log, one JSON line per crawled page
+LOG_FILE = "crawl_log.jsonl"
+
+# ranks.nl default English stopword list
+STOPWORDS = frozenset("""
+a about above after again against all am an and any are aren't as at be because
+been before being below between both but by can't cannot could couldn't did
+didn't do does doesn't doing don't down during each few for from further had
+hadn't has hasn't have haven't having he he'd he'll he's her here here's hers
+herself him himself his how how's i i'd i'll i'm i've if in into is isn't it
+it's its itself let's me more most mustn't my myself no nor not of off on once
+only or other ought our ours ourselves out over own same shan't she she'd she'll
+she's should shouldn't so some such than that that's the their theirs them
+themselves then there there's these they they'd they'll they're they've this
+those through to too under until up very was wasn't we we'd we'll we're we've
+were weren't what what's when when's where where's which while who who's whom
+why why's with won't would wouldn't you you'd you'll you're you've your yours
+yourself yourselves
+""".split())
+
+# Pages with less visible text than this tend to be navigation/error shells
+# A page with meaningful information value should have about 2-3 sentences worth of words (let's say 50); Navigation and UI Menu words count
+MIN_WORDS = 50
+
 def scraper(url, resp):
     links = extract_next_links(url, resp)
     return [link for link in links if is_valid(link)]
@@ -56,14 +80,18 @@ def extract_next_links(url, resp):
 
     words = tokenize(soup.get_text(" "))
 
+    # Check if a page is a duplicate of itself before recording
     duplicate = is_near_duplicate(page_url, fingerprint)
     record_page(page_url, len(words), fingerprint, freqs)
 
+    # If a page carries little text or repeats seen content, count it but don't crawl down its links
+    if len(words) < MIN_WORDS or duplicate:
+        return []
+
     return [absolute(page_url, a["href"]) for a in soup.find_all("a", href=True)]
 
-## Relative -> absolute against real page URL, then defragment.
-#  A malformed href makes urljoin raise; "" is then rejected by is_valid instead
-#  of crashing the worker thread.
+## Relative -> absolute against real page URL, then defragment
+#  A malformed href makes urljoin raise; "" is then rejected by is_valid instead of crashing the worker thread.
 def absolute(base, href):
     try:
         return urldefrag(urljoin(base, href.strip())).url

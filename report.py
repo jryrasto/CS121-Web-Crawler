@@ -18,7 +18,7 @@ def main():
         if url in seen:
             continue
         seen.add(url)
-        
+
         if longest is None or rec["words"] > longest[1]:
             longest = (url, rec["words"])
         # Stopwords already dropped when each page was logged
