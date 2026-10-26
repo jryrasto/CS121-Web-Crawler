@@ -3,7 +3,7 @@ import json
 import os
 import re
 from collections import Counter
-from urllib.parse import urlparse, urldefrag, urljoin, parse_qs
+from urllib.parse import urldefrag, urljoin, urlparse, parse_qs
 
 from bs4 import BeautifulSoup
 
@@ -40,6 +40,10 @@ TRAP_QUERY_KEYS = {"share", "replytocom", "action", "do", "rev", "version", "idx
                    "ical", "outlook-ical", "tribe-bar-date", "eventdisplay", "c", "o"}
 MAX_URL_LENGTH = 200
 
+# Simhash fingerprints within this many bits are near-duplicates (Manku et al., 2007: 3 of 64 bits)
+SIMHASH_BITS = 64
+NEAR_DUP_DISTANCE = 3
+
 def scraper(url, resp):
     links = extract_next_links(url, resp)
     return [link for link in links if is_valid(link)]
@@ -56,22 +60,22 @@ def extract_next_links(url, resp):
     # Return a list with the hyperlinks (as strings) scrapped from resp.raw_response.content
 
     ## Only a successful, non-empty, reasonably sized HTML response is a page
-    # 1. Is there a page at all?
+    # Is there a page at all?
     raw = resp.raw_response
     if raw is None:
         return []
-    # 2. Is it a redirect the cache did not follow?
+    # Is it a redirect the cache did not follow?
     if 300 <= resp.status < 400:
         location = raw.headers.get("Location")
         return [absolute(url, location)] if location else []
-    # 3. Is it a real page with actual data under 2MB (as defined by MAX_BYTES)?
+    # Is it a real page with actual data under 2MB (as defined by MAX_BYTES)?
     if resp.status != 200 or not raw.content or len(raw.content) > MAX_BYTES:
         return []
-    # 4. Is it actually an HTML URL?
+    # Is it actually an HTML URL?
     if "html" not in raw.headers.get("Content-Type", "text/html"):
         return []
-    # 5. Where did this content come from? Be certain about URLs that actually
-    #    hold the content and handle relative URLs using raw.url
+    # Where did this content come from? Be certain about URLs that actually
+    # hold the content and handle relative URLs using raw.url
     page_url = urldefrag(raw.url).url
     if not is_valid(page_url):
         return []
@@ -84,7 +88,18 @@ def extract_next_links(url, resp):
     for tag in soup(["script","style","noscript"]):
         tag.decompose()
 
+    # Every word counts toward page length, and only content words count toward frequency
     words = tokenize(soup.get_text(" "))
+    freqs = Counter(w for w in words if w not in STOPWORDS and len(w) > 1 and not w.isdigit())
+    fingerprint = simhash(freqs)
+
+    # Check before recording so a page is never a duplicate of itself
+    duplicate = is_near_duplicate(page_url, fingerprint)
+    record_page(page_url, len(words), fingerprint, freqs)
+
+    # A page is counted but its links not followed when it carries little text or repeated seen content
+    if len(words) < MIN_WORDS or duplicate:
+        return []
 
     # Check if a page is a duplicate of itself before recording
     duplicate = is_near_duplicate(page_url, fingerprint)
@@ -133,6 +148,7 @@ def is_valid(url):
         if TRAP_QUERY_KEYS & {k.lower() for k in query_keys}:
             return False
 
+        # Extended extension filters
         return not re.match(
             r".*\.(css|js|bmp|gif|jpe?g|ico"
             + r"|png|tiff?|mid|mp2|mp3|mp4"
@@ -141,12 +157,8 @@ def is_valid(url):
             + r"|data|dat|exe|bz2|tar|msi|bin|7z|psd|dmg|iso"
             + r"|epub|dll|cnf|tgz|sha1"
             + r"|thmx|mso|arff|rtf|jar|csv"
-            + r"|rm|smil|wmv|swf|wma|zip|rar|gz)$"
+            + r"|rm|smil|wmv|swf|wma|zip|rar|gz"
             + r"|svg|webm|mpg|ppsx|odt|ods|odp|apk|war|img|sql|txt|xml|json)$", parsed.path.lower())
-
-    except TypeError:
-        print ("TypeError for ", parsed)
-        raise
 
     ## Real HTMLs may contain broken links, and urlparse raises ValueError on things like an unclosed "["
     except ValueError:
@@ -176,3 +188,20 @@ def record_page(url, word_count, fingerprint, freqs):
     with open(LOG_FILE, "a", encoding="utf-8") as f:
         f.write(json.dumps({"url":url,"words":word_count,"simhash":fingerprint,"freqs":freqs}) + "\n")
     _seen_fingerprints.append((fingerprint, url))
+
+# Each token votes +weight/-weight on each bit of its hash, and the sign of each bit's total becomes the fingerprint bit
+# Using blake2b instead of hash() as the latter is salted per process, and fingerprints survive restarts
+def simhash(freqs):
+    votes = [0] * SIMHASH_BITS
+    for token, weight in freqs.items():
+        h = int.from_bytes(hashlib.blake2b(token.encode(), digest_size=8).digest(), "big")
+        for bit in range(SIMHASH_BITS):
+            votes[bit] += weight if h >> bit & 1 else -weight
+    return sum(1 << bit for bit in range(SIMHASH_BITS) if votes[bit] > 0)
+
+# Linear scan of ~50k comparisons, but the 500ms politeness delay covers it
+def is_near_duplicate(url, fingerprint):
+    return any(u != url and bin(fingerprint ^ f).count("1") <= NEAR_DUP_DISTANCE
+               for f, u in _seen_fingerprints)
+
+_seen_fingerprints = [(rec["simhash"], rec["url"]) for rec in read_log()]
