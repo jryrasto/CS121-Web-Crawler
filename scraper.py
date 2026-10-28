@@ -74,8 +74,19 @@ def extract_next_links(url, resp):
     # Is it a real page with actual data under 2MB (as defined by MAX_BYTES)?
     if resp.status != 200 or not raw.content or len(raw.content) > MAX_BYTES:
         return []
-    # Is it actually an HTML URL?
-    if "html" not in raw.headers.get("Content-Type", "text/html").lower():
+    # NUL bytes near start mean binary data, unless it's a UTF-16 page with no BOM which must be decoded before parsing
+    body = raw.content
+    if b"\x00" in body[:1024]:
+        if body.startswith(b"<\x00"):
+            body = body.decode("utf-16-le", errors="replace")
+        elif body.startswith(b"\x00<"):
+            body = body.decode("utf-16-be", errors="replace")
+        else:
+            return []
+    # Is the URL actually an HTML? A missing Content-Type is only trusted when the body starts like markup
+    ctype = raw.headers.get("Content-Type","").lower()
+    starts_like_markup = (body.lstrip()[:1] in ("<", b"<"))
+    if "html" not in ctype and not (not ctype and starts_like_markup):
         return []
     # Where did this content come from? Be certain about URLs that actually
     # hold the content and handle relative URLs using raw.url
@@ -87,7 +98,7 @@ def extract_next_links(url, resp):
     #  <style> HTML markup content as code before reading text
     #  raw.content is used over raw.text as BeautifulSoup can detect encoding from
     #  the page's own charset; no charset on a text/html response can mangle UTF-8 pages
-    soup = BeautifulSoup(raw.content, "lxml")
+    soup = BeautifulSoup(body, "lxml")
     for tag in soup(["script","style","noscript"]):
         tag.decompose()
 
@@ -136,7 +147,7 @@ def is_valid(url):
         if segments and Counter(segments).most_common(1)[0][1] >= 3:
             return False
         ## URLs with a full ISO or US/EU date format in the path or query are calendar links that can chain to the next day forever
-        if re.search(r"(\d{4}-\d{2}-\d{2}|\b\d{1,2}-\d{1,2}-\d{4})(?=[/?&]|$)", parsed.path + "?" + parsed.query):
+        if re.search(r"(\d{4}-\d{2}-\d{2}|\b\d{1,2}-\d{1,2}-\d{4})(?=[/?&T]|$)", parsed.path + "?" + parsed.query):
             return False
         ## URLs with query keys that only change how the page is presented multiply it into many with essentially the same content
         query_keys = {k.lower() for k in parse_qs(parsed.query, keep_blank_values=True)}
