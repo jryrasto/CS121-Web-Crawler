@@ -153,7 +153,8 @@ def is_valid(url):
             + r"|epub|dll|cnf|tgz|sha1"
             + r"|thmx|mso|arff|rtf|jar|csv"
             + r"|rm|smil|wmv|swf|wma|zip|rar|gz"
-            + r"|svg|webm|mpg|ppsx|odt|ods|odp|apk|war|img|sql|txt|xml|json|ics)$", parsed.path.lower())
+            + r"|svg|webm|mpg|ppsx|odt|ods|odp|apk|war|img|sql|txt|xml|json|ics"
+            + r"|ova|ovf|vmdk|vdi|qcow2|vhd|vhdx|xz|deb|rpm|whl|pkg)$", parsed.path.lower())
 
     ## Real HTMLs may contain broken links, and urlparse raises ValueError on things like an unclosed "["
     except ValueError:
