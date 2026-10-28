@@ -40,7 +40,7 @@ TRAP_QUERY_KEYS = {"share", "replytocom", "action", "do", "rev", "version", "idx
                    "ical", "outlook-ical", "tribe-bar-date", "eventdisplay", "c", "o", "sort", "orderby"}
 # Faceted-search keys (filter[units], tribe__ecp_custom_46[0], ...)
 # Every combination of facets is a new URL over the same listing
-TRAP_QUERY_PREFIXES = {"filter", "tribe"}
+TRAP_QUERY_PREFIXES = ("filter", "tribe")
 MAX_URL_LENGTH = 300
 
 # Simhash fingerprints within this many bits are near-duplicates (Manku et al., 2007: 3 of 64 bits)
@@ -104,14 +104,6 @@ def extract_next_links(url, resp):
     if len(words) < MIN_WORDS or duplicate:
         return []
 
-    # Check if a page is a duplicate of itself before recording
-    duplicate = is_near_duplicate(page_url, fingerprint)
-    record_page(page_url, len(words), fingerprint, freqs)
-
-    # If a page carries little text or repeats seen content, count it but don't crawl down its links
-    if len(words) < MIN_WORDS or duplicate:
-        return []
-
     return [absolute(page_url, a["href"]) for a in soup.find_all("a", href=True)]
 
 ## Relative -> absolute against real page URL, then defragment
@@ -140,11 +132,11 @@ def is_valid(url):
         if len(url) > MAX_URL_LENGTH:
             return False
         ## URLs that have growing path segments appearing >= 3 times tend to be traps
-        segments = [s for s in parsed.path.split("/") if s]
+        segments = [s for s in parsed.path.lower().split("/") if s]
         if segments and Counter(segments).most_common(1)[0][1] >= 3:
             return False
         ## URLs with a full ISO or US/EU date format in the path or query are calendar links that can chain to the next day forever
-        if re.search(r"(\d{4}-\d{2}-\d{2} | \b\d{1,2}-\d{4})(?=[/?&]|$)", parsed.path + "?" + parsed.query):
+        if re.search(r"(\d{4}-\d{2}-\d{2}|\b\d{1,2}-\d{1,2}-\d{4})(?=[/?&]|$)", parsed.path + "?" + parsed.query):
             return False
         ## URLs with query keys that only change how the page is presented multiply it into many with essentially the same content
         query_keys = {k.lower() for k in parse_qs(parsed.query, keep_blank_values=True)}
@@ -173,7 +165,7 @@ def is_valid(url):
 #  stopword list.
 def tokenize(text):
     text = text.replace("\u2019", "'")
-    return [w.lower() for w in re.findall(r"[a-z0-9]+(?:'[a-z0-9]+)*",text)]
+    return [w.lower() for w in re.findall(r"[A-Za-z0-9]+(?:'[A-Za-z0-9]+)*",text)]
 
 ## Read the log back, skipping a line half-written by a crash
 def read_log():
