@@ -94,9 +94,8 @@ def extract_next_links(url, resp):
     if not is_valid(page_url):
         return []
 
-    ## Using lxml for speed and tolerance of broken HTML. Remove <script> and
-    #  <style> HTML markup content as code before reading text
-    #  raw.content is used over raw.text as BeautifulSoup can detect encoding from
+    ## Using lxml for speed and tolerance of broken HTML. Remove <script> and <style> HTML markup content as code before reading text
+    #  body is the raw bytes, and BeautifulSoup can detect encoding from
     #  the page's own charset; no charset on a text/html response can mangle UTF-8 pages
     soup = BeautifulSoup(body, "lxml")
     for tag in soup(["script","style","noscript"]):
