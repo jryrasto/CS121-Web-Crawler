@@ -1,0 +1,175 @@
+RESULTS
+-------------------------
+
+Results are from the Oct 27-28 crawl which ended with an empty frontier.
+Unedited output is kept in crawl_results/report.txt as the record of the last run.
+
+Crawl summary
+
+> 14,922 downloads: 
+	> 13,173 status 200, 
+	> 1,511 status 4xx/5xx
+	> 238 cache status 6xx (no errors logged)
+> First run failed on a bug in is_valid, fixed in edfe599
+> Second run stopped ~01:24 when a multi-GB .ova file exhausted memory, resuming from the saved frontier at 10:05 and finished at 10:23 after the extension was filtered
+
+1. Unique pages: 10,878
+> Thin pages and near-duplicates still count because uniqueness depends only on the URL
+
+2. Longest page: https://ics.uci.edu/~eppstein/pubs/pubs.ff, 55,136 words
+
+> Raw report lists crawl_results/report.txt names http://dynamo.ics.uci.edu/files/zImage_paapi (93,275 words) as the longest page, which is a binary file
+	> Its top tokens are random letter pairs (mc, cl, xo), and only 20% of its tokens pass the 	  content filter, against 57% for pubs.ff
+> https://ics.uci.edu/~cs224/ (83,259 words) is also overcounted as a UTF-16 page with no byte-order
+  mark, so each character was read as a separate word. Decoded correctly it has 1,777 words
+> pubs.ff is a publication list that the server sends as text/html, and its word ratios are normal
+> The crawler treated a missing Content-Type as HTML and did not decode UTF-16 without a byte-order   mark. The latest commit fixes both, although a 3rd crawl was not started with it
+
+3. Top 50 words
+
+> Excluding stopwords, single characters and pure numbers. Removing non-HTML entries keeps the same 50 words and only swaps three adjacent pairs
+> married, ny, the months and 3x, 4x, 4o, 5x, 5o come mostly from the 811 genealogy pages under ~dhirschb/genealogy/, where ny is New York and the others mark generations. ramesh comes from ngs.ics.uci.edu, at about 6 per page across its 1,655 pages.
+
+Top 50 common words:
+married, 29634
+ics, 23856
+may, 21525
+will, 21415
+can, 19498
+one, 15774
+jan, 15684
+uci, 15583
+dec, 15307
+data, 15290
+ny, 15257
+mar, 15075
+information, 14939
+jun, 14736
+oct, 14121
+sep, 13893
+feb, 13836
+research, 13834
+apr, 13785
+nov, 13576
+jul, 13469
+aug, 13461
+time, 12810
+computer, 12788
+5x, 12262
+4x, 11371
+5o, 11212
+4o, 11004
+ramesh, 10478
+students, 9903
+using, 9703
+family, 9675
+project, 9597
+use, 9458
+software, 9392
+edu, 9315
+course, 9259
+learning, 9089
+systems, 8945
+university, 8944
+new, 8596
+science, 8481
+search, 8474
+us, 8405
+program, 8143
+work, 8124
+also, 8119
+3x, 8009
+irvine, 7841
+computing, 7833
+
+4. Subdomains of ics.uci.edu: 84
+
+> The bare ics.uci.edu host (5,597 pages) has its own line because the main school site lives there.
+> Removing the non-HTML entries keeps all 84 and changes only ics.uci.edu (-160pgs) and dynamo.ics.uci.edu (-1pg) from the total
+
+Subdomains, page counts (alphabetical):
+
+http://accessibility.ics.uci.edu, 6
+http://acoi.ics.uci.edu, 102
+http://archive-beta.ics.uci.edu, 11
+http://archive.ics.uci.edu, 211
+http://asterix.ics.uci.edu, 14
+http://bit.ics.uci.edu, 1
+http://cert.ics.uci.edu, 18
+http://checkin.ics.uci.edu, 3
+http://chenli.ics.uci.edu, 8
+http://cloudberry.ics.uci.edu, 5
+http://cml.ics.uci.edu, 183
+http://code.ics.uci.edu, 14
+http://computableplant.ics.uci.edu, 81
+http://containers.ics.uci.edu, 1
+http://courselisting.ics.uci.edu, 4
+http://cradl.ics.uci.edu, 16
+http://create.ics.uci.edu, 7
+http://cs.ics.uci.edu, 12
+http://dale-cooper-v0.ics.uci.edu, 16
+http://dgillen.ics.uci.edu, 30
+http://ds4all.ics.uci.edu, 9
+http://duttgroup.ics.uci.edu, 127
+http://dynamo.ics.uci.edu, 32
+http://e2.ics.uci.edu, 1
+http://edgelab.ics.uci.edu, 7
+http://emj.ics.uci.edu, 34
+http://evoke.ics.uci.edu, 4
+http://flamingo.ics.uci.edu, 231
+http://fr.ics.uci.edu, 3
+http://gitlab.ics.uci.edu, 1
+http://gradinfo.ics.uci.edu, 1
+http://grape.ics.uci.edu, 188
+http://graphics.ics.uci.edu, 1
+http://hack.ics.uci.edu, 1
+http://helpdesk.ics.uci.edu, 39
+http://hobbes.ics.uci.edu, 10
+http://hpi.ics.uci.edu, 5
+http://hub.ics.uci.edu, 3
+http://i-sensorium.ics.uci.edu, 5
+http://icde2023.ics.uci.edu, 45
+http://ics.uci.edu, 5597
+http://industryshowcase.ics.uci.edu, 22
+http://informatics.ics.uci.edu, 27
+http://intranet.ics.uci.edu, 15
+http://ipubmed.ics.uci.edu, 1
+http://isg.ics.uci.edu, 245
+http://isi-buds.ics.uci.edu, 5
+http://jgarcia.ics.uci.edu, 39
+http://julia-hub.ics.uci.edu, 1
+http://luci.ics.uci.edu, 4
+http://mailman.ics.uci.edu, 38
+http://malek.ics.uci.edu, 1
+http://mcs.ics.uci.edu, 11
+http://mds.ics.uci.edu, 9
+http://mhcid.ics.uci.edu, 17
+http://mover.ics.uci.edu, 23
+http://mswe.ics.uci.edu, 8
+http://myip.ics.uci.edu, 1
+http://nalini.ics.uci.edu, 8
+http://netreg.ics.uci.edu, 1
+http://ngs.ics.uci.edu, 1655
+http://oai.ics.uci.edu, 6
+http://onboarding.ics.uci.edu, 1
+http://riscit.ics.uci.edu, 3
+http://sana.ics.uci.edu, 4
+http://scale.ics.uci.edu, 7
+http://seal.ics.uci.edu, 46
+http://sherlock.ics.uci.edu, 7
+http://signage.ics.uci.edu, 1
+http://sparcfire.ics.uci.edu, 3
+http://speedtest.ics.uci.edu, 1
+http://staging-hub.ics.uci.edu, 1
+http://stairs.ics.uci.edu, 3
+http://stat.ics.uci.edu, 10
+http://summeracademy.ics.uci.edu, 11
+http://support.ics.uci.edu, 4
+http://tastier.ics.uci.edu, 1
+http://tutoring.ics.uci.edu, 5
+http://unite.ics.uci.edu, 10
+http://vision.ics.uci.edu, 220
+http://wics.ics.uci.edu, 344
+http://wiki.ics.uci.edu, 941
+http://www-db.ics.uci.edu, 25
+http://xtune.ics.uci.edu, 6
